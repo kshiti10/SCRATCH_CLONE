@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { DraxProvider, DraxView } from 'react-native-drax';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { RootStackParamList } from '../app/types';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import React, { useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { DraxProvider, DraxView } from 'react-native-drax';
+import { RootStackParamList } from '../app/types';
 
 type ActionScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Action'>;
 type HomeScreenRouteProp = RouteProp<RootStackParamList, 'Action'>;

@@ -1,13 +1,9 @@
-import React, { useState, useRef } from 'react';
-import { StyleSheet, View, Text, Image, FlatList, TouchableOpacity, TextInput, Animated } from 'react-native';
-import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import { RouteProp, useRoute } from '@react-navigation/native';
+import React, { useState } from 'react';
+import { Animated, FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import { RootStackParamList } from '../app/types';
-import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
-import ActionScreen from './Actions';
 
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-gesture-handler';
 
 const characters = [
