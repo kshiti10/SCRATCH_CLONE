@@ -1,218 +1,165 @@
-import { NavigationContainer, RouteProp, useRoute } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
-import React, { useRef, useState } from 'react';
-import { Animated, FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { StyleSheet, View, Text, Image, FlatList, TouchableOpacity, TextInput, Animated } from 'react-native';
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
+import { RouteProp, useRoute } from '@react-navigation/native';
 import { RootStackParamList } from '../app/types';
-import ActionScreen from '..//app/Actions';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import ActionScreen from './Actions';
 
-// Sample character data
-const spriteOptions = [
-  { id: '1', label: 'Cat', image: require('../assets/cat.png') },
-  { id: '2', label: 'Dog', image: require('../assets/dog.png') },
-  { id: '3', label: 'Ball', image: require('../assets/ball.png') },
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import 'react-native-gesture-handler';
+
+const characters = [
+  { id: '1', name: 'Cat', image: require('../assets/cat.png') },
+  { id: '2', name: 'Dog', image: require('../assets/dog.png') },
+  { id: '3', name: 'Ball', image: require('../assets/ball.png') }
 ];
 
 type HomeScreenRouteProp = RouteProp<RootStackParamList, 'Home'>;
 
-const MainScreen = ({ navigation }: any) => {
+const HomeScreen = ({ navigation }: any) => {
   const route = useRoute<HomeScreenRouteProp>();
   const { actions } = route.params || {};
 
-  const [selectedSprite, setSelectedSprite] = useState(spriteOptions[0]);
-  const [spriteSize, setSpriteSize] = useState(50);
-
-  const xTranslate = useRef(new Animated.Value(0)).current;
-  const yTranslate = useRef(new Animated.Value(0)).current;
-  const [spritePosition, setSpritePosition] = useState({ x: 0, y: 0 });
-  const [displayText, setDisplayText] = useState('');
-  const [rotationAngle, setRotationAngle] = useState(0);
-
-  const handleDrag = Animated.event(
-    [{ nativeEvent: { translationX: xTranslate, translationY: yTranslate } }],
-    { useNativeDriver: false }
+  const [sprites, setSprites] = useState(
+    characters.map((character) => ({
+      ...character,
+      size: 50,
+      position: { x: 0, y: 0 },
+      rotation: 0,
+      message: '',
+      translateX: new Animated.Value(0),
+      translateY: new Animated.Value(0),
+    }))
   );
 
-  const onDragEnd = (event: any) => {
+  const handleGestureEnd = (event: any, spriteId: string) => {
     const { translationX, translationY } = event.nativeEvent;
-    setSpritePosition((prev) => ({
-      x: Math.ceil(prev.x + translationX),
-      y: Math.ceil(prev.y + translationY),
-    }));
-    xTranslate.setValue(0);
-    yTranslate.setValue(0);
+
+    setSprites((prevSprites) =>
+      prevSprites.map((sprite) =>
+        sprite.id === spriteId
+          ? {
+              ...sprite,
+              position: {
+                x: Math.ceil(sprite.position.x + translationX),
+                y: Math.ceil(sprite.position.y + translationY),
+              },
+            }
+          : sprite
+      )
+    );
   };
 
-  const resetPosition = () => {
-    setSpritePosition({ x: 0, y: 0 });
-    setDisplayText('');
-    setRotationAngle(0);
-    setSpriteSize(50);
+  const handleReset = () => {
+    setSprites((prevSprites) =>
+      prevSprites.map((sprite) => ({
+        ...sprite,
+        position: { x: 0, y: 0 },
+        message: '',
+        rotation: 0,
+        size: 50,
+      }))
+    );
   };
 
-  const executeAction = async (action: string) => {
-    switch (action) {
-      case 'Increase Size':
-        setSpriteSize((prev) => prev + 10);
-        break;
-      case 'Decrease Size':
-        setSpriteSize((prev) => Math.max(prev - 10, 10));
-        break;
-      case 'Move X by 50':
-        setSpritePosition((prev) => ({ ...prev, x: prev.x + 50 }));
-        break;
-      case 'Move Y by 50':
-        setSpritePosition((prev) => ({ ...prev, y: prev.y + 50 }));
-        break;
-      case 'Go to (0,0)':
-        setSpritePosition({ x: 0, y: 0 });
-        break;
-      case 'Go to random position':
-        setSpritePosition({ x: Math.ceil(Math.random() * 200), y: Math.ceil(Math.random() * 200) });
-        break;
-      case 'Say Hello':
-        setDisplayText('Hello');
-        break;
-      case 'Say Hello for 1 sec':
-        setDisplayText('Hello');
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        setDisplayText('');
-        break;
-      case 'Rotate 180':
-        setRotationAngle((prev) => prev + 180);
-        break;
-      default:
-        console.log(`Unhandled action: ${action}`);
+  const handlePlay = async () => {
+    const spritePromises = sprites.map((sprite) => 
+      executeActionsForSprite(sprite.id, actions[sprite.id] || [])
+    );
+    await Promise.all(spritePromises);
+  };
+
+  const executeActionsForSprite = async (spriteId: string, actions: string[]) => {
+    for (const action of actions) {
+      await executeAction(action, spriteId);
     }
+  };
+
+  const executeAction = async (action: string, spriteId: string) => {
+    setSprites((prevSprites) =>
+      prevSprites.map((sprite) => {
+        if (sprite.id !== spriteId) return sprite;
+
+        switch (action) {
+          case 'Increase Size':
+            return { ...sprite, size: sprite.size + 10 };
+          case 'Decrease Size':
+            return { ...sprite, size: Math.max(sprite.size - 10, 10) };
+          case 'Move X by 50':
+            return { ...sprite, position: { ...sprite.position, x: sprite.position.x + 50 } };
+          case 'Move Y by 50':
+            return { ...sprite, position: { ...sprite.position, y: sprite.position.y + 50 } };
+          case 'Say Hello':
+            return { ...sprite, message: 'Hello' };
+          case 'Rotate 180':
+            return { ...sprite, rotation: sprite.rotation + 180 };
+          default:
+            return sprite;
+        }
+      })
+    );
     await new Promise((resolve) => setTimeout(resolve, 500));
   };
 
-  const handlePlayActions = async () => {
-    if (actions && actions.length > 0) {
-      for (const action of actions) {
-        if (action === 'Repeat') {
-          const repeatableActions = [...actions];
-          for (const repeatAction of repeatableActions) {
-            await executeAction(repeatAction);
-          }
-        } else {
-          await executeAction(action);
-        }
-      }
-    }
-  };
-
-  const updatePosition = (axis: 'x' | 'y', value: string) => {
-    setSpritePosition((prev) => ({ ...prev, [axis]: parseFloat(value) }));
-  };
-
-  const renderSpriteOption = ({ item }: any) => (
-    <TouchableOpacity
-      onPress={() => {
-        navigation.navigate('Action', { character: item });
-        setSelectedSprite(item);
+  const renderSprite = (sprite: any) => (
+    <PanGestureHandler
+      key={sprite.id}
+      onGestureEvent={Animated.event(
+        [{ nativeEvent: { translationX: sprite.translateX, translationY: sprite.translateY } }],
+        { useNativeDriver: false }
+      )}
+      onHandlerStateChange={(event) => {
+        if (event.nativeEvent.state === State.END) handleGestureEnd(event, sprite.id);
       }}
-      style={styles.spriteContainer}
     >
-      <Image source={item.image} style={styles.spriteIcon} />
-      <Text>{item.label}</Text>
-    </TouchableOpacity>
+      <Animated.View
+        style={[
+          styles.sprite,
+          {
+            transform: [
+              { translateX: Animated.add(sprite.translateX, new Animated.Value(sprite.position.x)) },
+              { translateY: Animated.add(sprite.translateY, new Animated.Value(sprite.position.y)) },
+              { rotate: `${sprite.rotation}deg` },
+            ],
+            width: sprite.size,
+            height: sprite.size,
+          },
+        ]}
+      >
+        <Image source={sprite.image} style={{ width: sprite.size, height: sprite.size }} />
+        {sprite.message !== '' && <Text style={{ textAlign: 'center' }}>{sprite.message}</Text>}
+      </Animated.View>
+    </PanGestureHandler>
   );
 
   return (
-    <View style={styles.mainContainer}>
-      <View style={styles.header}>
-        <Image source={require('../assets/scratch_logo.png')} style={styles.logo} />
-        <Text style={styles.signIn}>Sign In</Text>
-      </View>
-
-      <View style={styles.stageArea}>
-        <PanGestureHandler
-          onGestureEvent={handleDrag}
-          onHandlerStateChange={(event) => {
-            if (event.nativeEvent.state === State.END) {
-              onDragEnd(event);
-            }
-          }}
-        >
-          <Animated.View
-            style={[
-              styles.spriteDisplay,
-              {
-                transform: [
-                  { translateX: Animated.add(xTranslate, new Animated.Value(spritePosition.x)) },
-                  { translateY: Animated.add(yTranslate, new Animated.Value(spritePosition.y)) },
-                  { rotate: `${rotationAngle}deg` },
-                ],
-              },
-            ]}
-          >
-            <Image source={selectedSprite.image} style={{ width: spriteSize, height: spriteSize }} />
-            {displayText !== '' && <Text style={styles.displayMessage}>{displayText}</Text>}
-          </Animated.View>
-        </PanGestureHandler>
-      </View>
-
-      <View style={styles.controlPanel}>
-        <Text>Sprite: {selectedSprite.label}</Text>
-        <TouchableOpacity onPress={handlePlayActions}>
-          <Text>Play</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={resetPosition}>
-          <Text>Reset</Text>
-        </TouchableOpacity>
-
-        <View style={styles.positionControl}>
-          <Text>X</Text>
-          <TextInput
-            style={styles.inputField}
-            value={spritePosition.x.toString()}
-            onChangeText={(value) => updatePosition('x', value)}
-            keyboardType="numeric"
-          />
-          <Text>Y</Text>
-          <TextInput
-            style={styles.inputField}
-            value={spritePosition.y.toString()}
-            onChangeText={(value) => updatePosition('y', value)}
-            keyboardType="numeric"
-          />
-        </View>
-      </View>
-
-      <View style={styles.spriteSelection}>
-        <FlatList
-          data={spriteOptions}
-          horizontal
-          keyExtractor={(item) => item.id}
-          renderItem={renderSpriteOption}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.spriteList}
-        />
-      </View>
+    <View style={styles.container}>
+      <FlatList
+        data={sprites}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => renderSprite(item)}
+        horizontal
+      />
+      <TouchableOpacity onPress={handlePlay}>
+        <Text>Play</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={handleReset}>
+        <Text>Reset</Text>
+      </TouchableOpacity>
     </View>
   );
 };
 
-const Stack = createStackNavigator();
-
-export default function App() {
-  return (
-    <NavigationContainer independent={true}>
-      <Stack.Navigator initialRouteName="Home">
-        <Stack.Screen name="Home" component={MainScreen} />
-        <Stack.Screen name="Action" component={ActionScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
-  );
-}
+export default HomeScreen;
 
 const styles = StyleSheet.create({
-  mainContainer: {
+  container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  header: {
+  topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     padding: 10,
@@ -223,11 +170,11 @@ const styles = StyleSheet.create({
     width: 100,
     height: 40,
   },
-  signIn: {
+  signInText: {
     color: '#fff',
     fontWeight: 'bold',
   },
-  stageArea: {
+  stage: {
     flex: 3,
     justifyContent: 'center',
     alignItems: 'center',
@@ -236,11 +183,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ccc',
   },
-  spriteDisplay: {
-    width: 50,
-    height: 50,
+  sprite: {
+    position: 'absolute',
   },
-  controlPanel: {
+  controlBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     padding: 10,
@@ -248,42 +194,18 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderColor: '#ccc',
   },
-  positionControl: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  inputField: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 5,
-    width: 50,
-    marginHorizontal: 5,
-  },
-  spriteSelection: {
+  characterListSection: {
     paddingVertical: 10,
     backgroundColor: '#f0f0f0',
     borderTopWidth: 1,
     borderColor: '#ccc',
   },
-  spriteList: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  spriteContainer: {
+  characterContainer: {
     alignItems: 'center',
     marginHorizontal: 10,
   },
-  spriteIcon: {
+  characterIcon: {
     width: 50,
     height: 50,
-  },
-  displayMessage: {
-    position: 'absolute',
-    top: -20,
-    backgroundColor: '#fff',
-    padding: 5,
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: '#ccc',
   },
 });
