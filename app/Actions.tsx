@@ -1,67 +1,70 @@
-import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { DraxProvider, DraxView } from 'react-native-drax';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+
 import { RootStackParamList } from '../app/types';
 
+// Define prop types for ActionScreen
 type ActionScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Action'>;
-type HomeScreenRouteProp = RouteProp<RootStackParamList, 'Action'>;
-
-const blocks = [
-  'Move X by 50',
-  'Move Y by 50',
-  'Rotate 180',
-  'Go to (0,0)',
-  'Move X=50, Y=50',
-  'Go to random position',
-  'Say Hello',
-  'Say Hello for 1 sec',
-  'Increase Size',
-  'Decrease Size',
-  'Repeat',
-];
 
 export default function ActionScreen() {
+  const [actionBlocks, setActionBlocks] = useState<string[]>([]);
   const navigation = useNavigation<ActionScreenNavigationProp>();
-  const route = useRoute<HomeScreenRouteProp>();
-  const { character } = route.params || {};
+  const route = useRoute(); // Use route to access parameters
 
-  const [spriteActions, setSpriteActions] = useState<{ [spriteId: string]: string[] }>({});
-  const [currentSprite, setCurrentSprite] = useState(character?.id || '');
+  // Get character parameter from route
+  const { character } = route.params as { character: { id: string; name: string } };
+
+  // Optional: Use the character name in the title or somewhere else
+  useEffect(() => {
+    // You can perform actions with the character here if needed
+    console.log(`Editing actions for character: ${character.name}`);
+  }, [character]);
+
+  const blocks = [
+    'Move X by 50',
+    'Move Y by 50',
+    'Rotate 180',
+    'Go to (0,0)',
+    'Move X=50, Y=50',
+    'Go to random position',
+    'Say Hello',
+    'Say Hello for 1 sec',
+    'Increase Size',
+    'Decrease Size',
+    'Repeat',
+  ];
 
   const handleDrop = (block: string) => {
-    setSpriteActions((prevActions) => ({
-      ...prevActions,
-      [currentSprite]: [...(prevActions[currentSprite] || []), block],
-    }));
+    setActionBlocks((prev) => [...prev, block]);
   };
 
   const handleDelete = (index: number) => {
-    setSpriteActions((prevActions) => ({
-      ...prevActions,
-      [currentSprite]: prevActions[currentSprite].filter((_, i) => i !== index),
-    }));
+    setActionBlocks((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleDone = () => {
-    navigation.navigate('Home', { actions: spriteActions });
+    navigation.navigate('Home', { actions: { [character.id]: actionBlocks } }); // Navigate with actions for specific character
   };
 
   return (
     <DraxProvider>
       <View style={styles.container}>
+        {/* Top Bar */}
         <View style={styles.topBar}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Text style={styles.backButton}>{"< Back"}</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>Scratch Action Editor for {character?.name}</Text>
+          <Text style={styles.title}>{`Scratch Action Editor - ${character.name}`}</Text>
           <TouchableOpacity onPress={handleDone}>
             <Text style={styles.doneButton}>Done</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.editorContainer}>
+          {/* Code Blocks Section */}
           <View style={styles.codeSection}>
             <Text style={styles.sectionTitle}>CODE</Text>
             <ScrollView contentContainerStyle={styles.blockList}>
@@ -78,10 +81,11 @@ export default function ActionScreen() {
             </ScrollView>
           </View>
 
+          {/* Action Section */}
           <View style={styles.actionSection}>
             <Text style={styles.sectionTitle}>ACTION</Text>
             <View style={styles.actionArea}>
-              {(spriteActions[currentSprite] || []).map((block, index) => (
+              {actionBlocks.map((block, index) => (
                 <View key={index} style={styles.actionBlock}>
                   <Text>{block}</Text>
                   <TouchableOpacity
@@ -112,7 +116,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   topBar: {
-    height: 50,
+    height: 70,
     backgroundColor: '#007bff',
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -170,17 +174,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#000',
   },
-  spritesList: {
-    paddingHorizontal: 5,
-  },
-  spriteContainer: {
-    marginBottom: 15,
-  },
-  spriteTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 5,
-    textAlign: 'center',
+  actionArea: {
+    flex: 1,
+    borderColor: '#388e3c',
+    borderWidth: 2,
+    borderRadius: 5,
+    padding: 10,
   },
   actionBlock: {
     height: 40,
