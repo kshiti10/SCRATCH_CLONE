@@ -1,70 +1,79 @@
-import { useNavigation } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { DraxProvider, DraxView } from 'react-native-drax';
-import { RootStackParamList } from './types';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 
-// Define navigation type for ActionScreen
-type NavigationProps = StackNavigationProp<RootStackParamList, 'Action'>;
+import { RootStackParamList } from '../app/types';
 
-const availableBlocks = [
-  'Move X by 50',
-  'Move Y by 50',
-  'Rotate 180 degrees',
-  'Move to Origin',
-  'Move to Random Position',
-  'Display "Hello"',
-  'Display "Hello" for 1 second',
-  'Increase Size',
-  'Decrease Size',
-  'Repeat Action',
-];
+// Define prop types for ActionScreen
+type ActionScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Action'>;
 
-const ActionEditor = () => {
-  const [selectedActions, setSelectedActions] = useState<string[]>([]);
-  const navigation = useNavigation<NavigationProps>();
+export default function ActionScreen() {
+  const [actionBlocks, setActionBlocks] = useState<string[]>([]);
+  const navigation = useNavigation<ActionScreenNavigationProp>();
+  const route = useRoute(); // Use route to access parameters
 
-  // Handle dropping blocks into the action area
-  const onDrop = (block: string) => {
-    setSelectedActions((currentActions) => [...currentActions, block]);
+  // Get character parameter from route
+  const { character } = route.params as { character: { id: string; name: string } };
+
+  // Optional: Use the character name in the title or somewhere else
+  useEffect(() => {
+    // You can perform actions with the character here if needed
+    console.log(`Editing actions for character: ${character.name}`);
+  }, [character]);
+
+  const blocks = [
+    'Move X by 50',
+    'Move Y by 50',
+    'Rotate 180',
+    'Go to (0,0)',
+    'Move X=50, Y=50',
+    'Go to random position',
+    'Say Hello',
+    'Say Hello for 1 sec',
+    'Increase Size',
+    'Decrease Size',
+    'Repeat',
+  ];
+
+  const handleDrop = (block: string) => {
+    setActionBlocks((prev) => [...prev, block]);
   };
 
-  // Handle removing a block from the action area
-  const onRemove = (index: number) => {
-    setSelectedActions((currentActions) => currentActions.filter((_, i) => i !== index));
+  const handleDelete = (index: number) => {
+    setActionBlocks((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Navigate back with the selected actions
-  const onFinish = () => {
-    navigation.navigate('Home', { actions: selectedActions });
+  const handleDone = () => {
+    navigation.navigate('Home', { actions: { [character.id]: actionBlocks } }); // Navigate with actions for specific character
   };
 
   return (
     <DraxProvider>
-      <View style={styles.wrapper}>
-        {/* Top navigation bar */}
-        <View style={styles.navigationBar}>
+      <View style={styles.container}>
+        {/* Top Bar */}
+        <View style={styles.topBar}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.navButton}>{"< Back"}</Text>
+            <Text style={styles.backButton}>{"< Back"}</Text>
           </TouchableOpacity>
-          <Text style={styles.screenTitle}>Action Editor</Text>
-          <TouchableOpacity onPress={onFinish}>
-            <Text style={styles.navButton}>Finish</Text>
+          <Text style={styles.title}>{`Scratch Action Editor - ${character.name}`}</Text>
+          <TouchableOpacity onPress={handleDone}>
+            <Text style={styles.doneButton}>Done</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.editorWrapper}>
-          {/* Available blocks section */}
-          <View style={styles.blockSection}>
-            <Text style={styles.sectionHeading}>Available Actions</Text>
+        <View style={styles.editorContainer}>
+          {/* Code Blocks Section */}
+          <View style={styles.codeSection}>
+            <Text style={styles.sectionTitle}>CODE</Text>
             <ScrollView contentContainerStyle={styles.blockList}>
-              {availableBlocks.map((block, index) => (
+              {blocks.map((block, index) => (
                 <DraxView
                   key={index}
                   payload={block}
-                  style={styles.blockItem}
-                  draggingStyle={styles.dragEffect}
+                  style={styles.codeBlock}
+                  draggingStyle={styles.dragging}
                 >
                   <Text style={styles.blockText}>{block}</Text>
                 </DraxView>
@@ -72,26 +81,26 @@ const ActionEditor = () => {
             </ScrollView>
           </View>
 
-          {/* Action area */}
+          {/* Action Section */}
           <View style={styles.actionSection}>
-            <Text style={styles.sectionHeading}>Selected Actions</Text>
-            <View style={styles.actionContainer}>
-              {selectedActions.map((action, index) => (
-                <View key={index} style={styles.actionItem}>
-                  <Text>{action}</Text>
+            <Text style={styles.sectionTitle}>ACTION</Text>
+            <View style={styles.actionArea}>
+              {actionBlocks.map((block, index) => (
+                <View key={index} style={styles.actionBlock}>
+                  <Text>{block}</Text>
                   <TouchableOpacity
-                    style={styles.removeButton}
-                    onPress={() => onRemove(index)}
+                    style={styles.deleteButton}
+                    onPress={() => handleDelete(index)}
                   >
-                    <Text style={styles.removeButtonText}>Remove</Text>
+                    <Text style={styles.deleteButtonText}>Delete</Text>
                   </TouchableOpacity>
                 </View>
               ))}
               <DraxView
                 style={styles.dropArea}
-                onReceiveDragDrop={({ dragged: { payload } }) => onDrop(payload)}
+                onReceiveDragDrop={({ dragged: { payload } }) => handleDrop(payload)}
               >
-                <Text style={styles.dropAreaText}>Drop Actions Here</Text>
+                <Text style={styles.dropText}>Drag Here</Text>
               </DraxView>
             </View>
           </View>
@@ -99,46 +108,49 @@ const ActionEditor = () => {
       </View>
     </DraxProvider>
   );
-};
+}
 
-// Styles for the component
 const styles = StyleSheet.create({
-  wrapper: {
+  container: {
     flex: 1,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#f5f5f5',
   },
-  navigationBar: {
-    height: 50,
-    backgroundColor: '#1e90ff',
+  topBar: {
+    height: 70,
+    backgroundColor: '#007bff',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 15,
+    paddingHorizontal: 10,
   },
-  navButton: {
+  backButton: {
     color: '#fff',
     fontSize: 18,
   },
-  screenTitle: {
+  title: {
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
   },
-  editorWrapper: {
+  doneButton: {
+    color: '#fff',
+    fontSize: 18,
+  },
+  editorContainer: {
     flex: 1,
     flexDirection: 'row',
   },
-  blockSection: {
+  codeSection: {
     flex: 0.5,
-    backgroundColor: '#e0f7fa',
+    backgroundColor: '#e3f2fd',
     padding: 10,
   },
   actionSection: {
     flex: 0.5,
-    backgroundColor: '#e8f5e9',
+    backgroundColor: '#c8e6c9',
     padding: 10,
   },
-  sectionHeading: {
+  sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 10,
@@ -146,30 +158,30 @@ const styles = StyleSheet.create({
   blockList: {
     alignItems: 'center',
   },
-  blockItem: {
+  codeBlock: {
     width: '90%',
     height: 40,
-    backgroundColor: '#80deea',
+    backgroundColor: '#bbdefb',
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 5,
     marginVertical: 5,
   },
-  dragEffect: {
-    opacity: 0.7,
+  dragging: {
+    opacity: 0.5,
   },
   blockText: {
     fontSize: 16,
     color: '#000',
   },
-  actionContainer: {
+  actionArea: {
     flex: 1,
     borderColor: '#388e3c',
     borderWidth: 2,
     borderRadius: 5,
     padding: 10,
   },
-  actionItem: {
+  actionBlock: {
     height: 40,
     backgroundColor: '#a5d6a7',
     justifyContent: 'space-between',
@@ -179,27 +191,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 10,
   },
-  removeButton: {
-    backgroundColor: '#d32f2f',
+  deleteButton: {
+    backgroundColor: '#ff5252',
     padding: 5,
     borderRadius: 5,
   },
-  removeButtonText: {
+  deleteButtonText: {
     color: '#fff',
     fontSize: 12,
   },
   dropArea: {
     height: 80,
-    backgroundColor: '#ffeb3b',
+    backgroundColor: '#fff3e0',
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 5,
     marginVertical: 10,
   },
-  dropAreaText: {
+  dropText: {
     fontSize: 16,
-    color: '#555',
+    color: '#757575',
   },
 });
-
-export default ActionEditor;
