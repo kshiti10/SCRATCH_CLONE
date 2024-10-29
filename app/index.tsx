@@ -1,5 +1,5 @@
-import React, { useState, useRef, useCallback, useMemo } from 'react';
-import { StyleSheet, View, Text, Image, FlatList, TouchableOpacity, TextInput, Animated } from 'react-native';
+import React, { useState, useRef, useCallback } from 'react';
+import { StyleSheet, View, Text, Image, FlatList, TouchableOpacity, Animated } from 'react-native';
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { RootStackParamList } from '../app/types';
@@ -15,7 +15,6 @@ const characters = [
 
 type HomeScreenRouteProp = RouteProp<RootStackParamList, 'Home'>;
 
-// Define a type for each character's state
 type CharacterState = {
   size: number;
   position: { x: number; y: number };
@@ -23,7 +22,6 @@ type CharacterState = {
   message: string;
 };
 
-// Define the main state type
 type CharacterStates = {
   [key: string]: CharacterState;
 };
@@ -42,6 +40,10 @@ const HomeScreen = ({ navigation }: any) => {
         message: '',
       },
     }), {} as CharacterStates)
+  );
+
+  const [characterActions, setCharacterActions] = useState<{ [key: string]: string[] }>(
+    characters.reduce((acc, char) => ({ ...acc, [char.id]: [] }), {})
   );
 
   const translateX = useRef(new Animated.Value(0)).current;
@@ -91,21 +93,32 @@ const HomeScreen = ({ navigation }: any) => {
           case 'Move Y by 50':
             return { ...prev, [characterId]: { ...characterState, position: { ...characterState.position, y: characterState.position.y + 50 } } };
           case 'Move X=50, Y=50':
-            return { ...prev, [characterId]: { ...characterState, position: { x: characterState.position.x + 50, y: characterState.position.y + 50 } } };
+            return { ...prev, [characterId]: { ...characterState, position: { x: 50, y: 50 } } };
           case 'Go to (0,0)':
             return { ...prev, [characterId]: { ...characterState, position: { x: 0, y: 0 } } };
           case 'Go to random position':
-            return { ...prev, [characterId]: { ...characterState, position: { x: Math.random() * 200, y: Math.random() * 200 } } };
+            return {
+              ...prev,
+              [characterId]: {
+                ...characterState,
+                position: {
+                  x: Math.floor(Math.random() * 300),
+                  y: Math.floor(Math.random() * 500),
+                },
+              },
+            };
           case 'Say Hello':
             return { ...prev, [characterId]: { ...characterState, message: 'Hello' } };
           case 'Rotate 180':
             return { ...prev, [characterId]: { ...characterState, rotation: characterState.rotation + 180 } };
+          case 'Say Hello for 1 sec':
+            return { ...prev, [characterId]: { ...characterState, message: 'Hello' } };
           default:
             return prev;
         }
       });
-      if (action === 'Say Hello') {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (action === 'Say Hello' || action === 'Say Hello for 1 sec') {
+        await new Promise((resolve) => setTimeout(resolve, action === 'Say Hello' ? 0 : 1000));
         setCharacterStates((prev) => ({
           ...prev,
           [characterId]: { ...prev[characterId], message: '' },
@@ -117,24 +130,17 @@ const HomeScreen = ({ navigation }: any) => {
   );
 
   const handlePlay = useCallback(async () => {
-    // Iterate over each character and execute its specific actions
-    for (const character of characters) {
-      // Get the specific actions for this character (assuming actions[character.id] holds individual actions)
-      const characterActions = actions?.[character.id] || []; // Get character-specific actions
-  
-      for (const action of characterActions) {
-        if (action === 'Repeat') {
-          const repeatActions = [...characterActions];
-          for (const repeatAction of repeatActions) {
-            await executeAction(repeatAction, character.id);
-          }
-        } else {
-          await executeAction(action, character.id);
-        }
+    const actionPromises = characters.map(async (character) => {
+      for (const action of characterActions[character.id]) {
+        await executeAction(action, character.id);
       }
-    }
-  }, [actions, executeAction]);
-  
+    });
+    await Promise.all(actionPromises);
+  }, [characterActions, executeAction]);
+
+  const updateActions = (actions) => {
+    setCharacterActions(actions);
+  };
 
   return (
     <View style={styles.container}>
@@ -150,7 +156,7 @@ const HomeScreen = ({ navigation }: any) => {
             transform: [
               { translateX: characterState.position.x },
               { translateY: characterState.position.y },
-              { rotate: `${characterState.rotation}deg`},
+              { rotate: `${characterState.rotation}deg` },
             ],
           };
           return (
@@ -188,7 +194,7 @@ const HomeScreen = ({ navigation }: any) => {
           horizontal
           keyExtractor={(item) => item.id.toString()}
           renderItem={({ item }) => (
-            <TouchableOpacity onPress={() => navigation.navigate('Action', { character: item })} style={styles.characterContainer}>
+            <TouchableOpacity onPress={() => navigation.navigate('Action', { characters, updateActions })} style={styles.characterContainer}>
               <Image source={item.image} style={styles.characterIcon} />
               <Text>{item.name}</Text>
             </TouchableOpacity>
@@ -200,7 +206,6 @@ const HomeScreen = ({ navigation }: any) => {
     </View>
   );
 };
-
 
 const Stack = createStackNavigator();
 
@@ -245,44 +250,27 @@ const styles = StyleSheet.create({
     borderColor: '#ccc',
   },
   sprite: {
-    position: "absolute", width: 50,
-    height: 50,
+    position: 'absolute',
   },
   controlBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     padding: 10,
-    backgroundColor: '#f0f0f0',
-    borderTopWidth: 1,
-    borderColor: '#ccc',
-  },
-  positionControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 5,
-    width: 50,
-    marginHorizontal: 5,
+    backgroundColor: '#eee',
   },
   characterListSection: {
-    paddingVertical: 10,
-    backgroundColor: '#f0f0f0',
-    borderTopWidth: 1,
-    borderColor: '#ccc',
+    padding: 10,
   },
   characterList: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingHorizontal: 10,
   },
   characterContainer: {
     alignItems: 'center',
     marginHorizontal: 10,
   },
   characterIcon: {
-    width: 50,
-    height: 50,
+    width: 40,
+    height: 40,
+    marginBottom: 5,
   },
 });
